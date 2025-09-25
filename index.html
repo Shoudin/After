@@ -6,8 +6,18 @@
   <title>After — Check-in</title>
   <style>
     :root { font-family: system-ui, sans-serif; }
-    body { margin:0; padding:24px; background: url("font.png") no-repeat center center fixed;
-background-size: cover; color:#e7ecf3; }
+    html, body { height: 100%; }
+
+    body { margin:0; padding:24px; color:#e7ecf3; position:relative; overflow-x:hidden; }
+    body::before {
+  content:"";
+  position:fixed; /* colle au viewport, pas au contenu */
+  inset:0;
+  background: url("font.png") center center / cover no-repeat;
+  z-index:-1;     /* passe derrière tout */
+  transform: translateZ(0); /* aide certains moteurs mobiles */
+}
+
     .card { background:#12161b; border:1px solid #27313b; border-radius:16px; padding:20px; max-width:720px; margin:0 auto 20px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
 .btn { 
@@ -161,8 +171,7 @@ background-size: cover; color:#e7ecf3; }
         });
         localStorage.setItem(LAST_PING_KEY, String(Date.now()));
         pingBtn.textContent = "Ping envoyé ✅";
-        setTimeout(()=> pingBtn.textContent = "Je viens 👋", 3000);
-      } catch (e) {
+        setTimeout(()=> pingBtn.textContent = "Je viens!", 3000);      } catch (e) {
         console.error(e);
         alert("Oups, impossible d’envoyer le ping.");
       }
@@ -215,5 +224,6 @@ background-size: cover; color:#e7ecf3; }
   </script>
 </body>
 </html>
+
 
 
