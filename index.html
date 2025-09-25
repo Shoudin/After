@@ -6,10 +6,20 @@
   <title>After — Check-in</title>
   <style>
     :root { font-family: system-ui, sans-serif; }
-    body { margin:0; padding:24px; background:#0b0d10; color:#e7ecf3; }
+    body { margin:0; padding:24px; background: url("font.png") no-repeat center center fixed;
+background-size: cover; color:#e7ecf3; }
     .card { background:#12161b; border:1px solid #27313b; border-radius:16px; padding:20px; max-width:720px; margin:0 auto 20px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    .btn { cursor:pointer; border:1px solid #3a4a5c; background:#1a2230; border-radius:12px; padding:12px 16px; color:#e7ecf3; font-weight:600; }
+.btn { 
+  cursor:pointer; 
+  border:1px solid #3a4a5c; 
+  background:#1a2230; 
+  border-radius:12px; 
+  padding:20px 32px;   /* plus grand */
+  font-size:1.5rem;    /* texte plus gros */
+  color:#e7ecf3; 
+  font-weight:700; 
+}
     .btn:hover { filter:brightness(1.15); }
     .pill { padding:6px 10px; border-radius:999px; font-weight:700; }
     .pill.open { background:#0f5132; border:1px solid #145a3a; color:#d1f7df; }
@@ -31,7 +41,7 @@
         <div id="statusPill" class="pill closed">Fermé</div>
         <div class="muted" id="statusHint">L’after est fermé pour le moment.</div>
       </div>
-      <button id="pingBtn" class="btn">Je viens 👋</button>
+      <button id="pingBtn" class="btn">Je viens! 👋</button>
     </div>
   </div>
 
@@ -205,4 +215,5 @@
   </script>
 </body>
 </html>
+
 
