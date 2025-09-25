@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>After — Check-in</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; }
+    body { margin:0; padding:24px; background:#0b0d10; color:#e7ecf3; }
+    .card { background:#12161b; border:1px solid #27313b; border-radius:16px; padding:20px; max-width:720px; margin:0 auto 20px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .btn { cursor:pointer; border:1px solid #3a4a5c; background:#1a2230; border-radius:12px; padding:12px 16px; color:#e7ecf3; font-weight:600; }
+    .btn:hover { filter:brightness(1.15); }
+    .pill { padding:6px 10px; border-radius:999px; font-weight:700; }
+    .pill.open { background:#0f5132; border:1px solid #145a3a; color:#d1f7df; }
+    .pill.closed { background:#512f0f; border:1px solid #5a3a14; color:#f7e3d1; }
+    .muted { color:#a7b3c2; }
+    .hidden { display:none; }
+    input, label { display:block; }
+    input { background:#0f141a; color:#e7ecf3; border:1px solid #2a3644; border-radius:10px; padding:10px 12px; width:100%; }
+    .grid { display:grid; gap:12px; grid-template-columns:1fr 1fr; }
+    @media (max-width:600px){ .grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1 style="margin:0 0 6px">After — Status</h1>
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div id="statusPill" class="pill closed">Fermé</div>
+        <div class="muted" id="statusHint">L’after est fermé pour le moment.</div>
+      </div>
+      <button id="pingBtn" class="btn">Je viens 👋</button>
+    </div>
+  </div>
+
+  <div class="card" id="adminCard">
+    <h2 style="margin-top:0">Admin</h2>
+    <div id="adminLoggedOut">
+      <p class="muted">Connecte-toi pour gérer l’after.</p>
+      <div class="grid">
+        <div>
+          <label for="email">Email admin</label>
+          <input id="email" type="email" placeholder="admin@exemple.com"/>
+        </div>
+        <div>
+          <label for="password">Mot de passe</label>
+          <input id="password" type="password" placeholder="••••••••"/>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="loginBtn" class="btn">Se connecter</button>
+      </div>
+    </div>
+
+    <div id="adminLoggedIn" class="hidden">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="muted">Connecté en admin</div>
+          <div><strong>Compteur :</strong> <span id="count">—</span></div>
+        </div>
+        <div class="row">
+          <button id="toggleBtn" class="btn">Basculer Ouvert/Fermé</button>
+          <button id="logoutBtn" class="btn">Se déconnecter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase v9 (modular) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, onSnapshot, addDoc, collection, query, where
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // === 1) CONFIG ===
+    const firebaseConfig = {
+      apiKey: "REPLACE_WITH_API_KEY",
+      authDomain: "REPLACE_WITH_AUTH_DOMAIN",
+      projectId: "REPLACE_WITH_PROJECT_ID",
+      storageBucket: "REPLACE_WITH_STORAGE_BUCKET",
+      messagingSenderId: "REPLACE_WITH_SENDER_ID",
+      appId: "REPLACE_WITH_APP_ID"
+    };
+    const ADMIN_UID = "REPLACE_WITH_ADMIN_UID";
+
+    // === 2) INIT ===
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    // === 3) UI refs ===
+    const statusPill = document.getElementById("statusPill");
+    const statusHint = document.getElementById("statusHint");
+    const pingBtn    = document.getElementById("pingBtn");
+
+    const adminLoggedOut = document.getElementById("adminLoggedOut");
+    const adminLoggedIn  = document.getElementById("adminLoggedIn");
+    const email    = document.getElementById("email");
+    const password = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn= document.getElementById("logoutBtn");
+    const toggleBtn= document.getElementById("toggleBtn");
+    const countEl  = document.getElementById("count");
+
+    // === 4) Public: live status ===
+    const statusRef = doc(db, "config", "status");
+    onSnapshot(statusRef, (snap) => {
+      const isOpen = !!(snap.data()?.isOpen);
+      if (isOpen) {
+        statusPill.textContent = "Ouvert";
+        statusPill.classList.add("open"); statusPill.classList.remove("closed");
+        statusHint.textContent = "C’est ouvert ! Tu peux pinger.";
+        pingBtn.disabled = false;
+      } else {
+        statusPill.textContent = "Fermé";
+        statusPill.classList.add("closed"); statusPill.classList.remove("open");
+        statusHint.textContent = "L’after est fermé pour le moment.";
+        pingBtn.disabled = true;
+      }
+    });
+
+    // Anti-spam léger (UX) : 1 ping / 12h (côté client)
+    const LAST_PING_KEY = "after_last_ping";
+    function canPing() {
+      const last = Number(localStorage.getItem(LAST_PING_KEY) || 0);
+      return (Date.now() - last) > 12*60*60*1000;
+    }
+
+    pingBtn.addEventListener("click", async () => {
+      try {
+        if (!canPing()) return alert("Tu as déjà ping récemment. Merci !");
+        await addDoc(collection(db, "pings"), {
+          at: new Date().toISOString(),
+          ua: navigator.userAgent.slice(0, 80)
+        });
+        localStorage.setItem(LAST_PING_KEY, String(Date.now()));
+        pingBtn.textContent = "Ping envoyé ✅";
+        setTimeout(()=> pingBtn.textContent = "Je viens 👋", 3000);
+      } catch (e) {
+        console.error(e);
+        alert("Oups, impossible d’envoyer le ping.");
+      }
+    });
+
+    // === 5) Auth admin ===
+    let unsubscribePings = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      const isAdmin = !!user && user.uid === ADMIN_UID;
+      adminLoggedOut.classList.toggle("hidden", isAdmin);
+      adminLoggedIn.classList.toggle("hidden", !isAdmin);
+
+      // Si on se déconnecte, stop l'abonnement
+      if (!isAdmin && unsubscribePings) {
+        unsubscribePings(); unsubscribePings = null;
+        countEl.textContent = "—";
+      }
+
+      // Abonnement compteur en temps réel pour l'admin uniquement
+      if (isAdmin) {
+        const q = query(collection(db, "pings"));
+        unsubscribePings = onSnapshot(q, (snap) => {
+          countEl.textContent = String(snap.size);
+        });
+      }
+    });
+
+    loginBtn.addEventListener("click", async () => {
+      try {
+        await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
+      } catch (e) {
+        console.error(e);
+        alert("Login raté. Vérifie tes identifiants.");
+      }
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+    // === 6) Toggle statut (admin only) ===
+    toggleBtn.addEventListener("click", async () => {
+      const user = auth.currentUser;
+      if (!user || user.uid !== ADMIN_UID) return alert("Nope.");
+      const snap = await getDoc(statusRef);
+      const isOpen = !!(snap.data()?.isOpen);
+      await setDoc(statusRef, { isOpen: !isOpen }, { merge: true });
+    });
+  </script>
+</body>
+</html>
